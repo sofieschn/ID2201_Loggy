@@ -8,12 +8,13 @@ stop(Worker) ->
     Worker ! stop.
 
 init(Name, Log, Seed, Sleep, Jitter) ->
-    rand:seed(Seed, Seed, Seed),
+    % Seed with a better random generator
+    rand:seed(exsplus, {Seed, Seed + 1, Seed + 2}),
     receive
         {peers, Peers} ->
             loop(Name, Log, Peers, Sleep, Jitter);
-    stop -> 
-        ok
+        stop -> 
+            ok
     end.
 
 peers(Wrk, Peers) ->

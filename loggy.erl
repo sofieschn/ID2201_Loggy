@@ -6,8 +6,8 @@
 start(Nodes) ->
     spawn_link(fun() ->init(Nodes) end).
 
-stop(Logger) ->
-   Logger ! stop.
+stop(Loggy) ->
+   Loggy ! stop.
 
 init(_) ->
     loop().
