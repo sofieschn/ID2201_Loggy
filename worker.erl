@@ -26,32 +26,39 @@ peers(Wrk, Peers) ->
     Wait = rand:uniform(Sleep),
     receive
         {msg, ReceivedTime, Msg} ->
-            % Update the clock with the received timestamp before incrementing
+            % Message received from another worker
+            % Merge the current clock with the received message's clock
             NewClock = time:inc(Name, time:merge(Clock, ReceivedTime)),
+            % Log the message with the updated clock
             Log ! {log, Name, NewClock, {received, Msg}},
+            % Continue the loop with the updated clock
             loop(Name, Log, Peers, Sleep, Jitter, NewClock);
+                   
+         % Handle the stop message (stop the worker)
         stop -> 
             ok;
+        
         Error ->
+            % Log any errors that occur
             Log ! {log, Name, Clock, {error, Error}}
     after Wait ->
         Selected = select(Peers),
         
         % Increment the clock before sending the message
-        UpdatedClock = time:inc(Name, Clock),
+        NewClock = time:inc(Name, Clock),
         
         Message = {hello, rand:uniform(100)},
         
         % Send the message with the updated clock
-        Selected ! {msg, UpdatedClock, Message},
+        Selected ! {msg, NewClock, Message},
         
         jitter(Jitter),
         
         % Log the sending event with the updated clock
-        Log ! {log, Name, UpdatedClock, {sending, Message}},
+        Log ! {log, Name, NewClock, {sending, Message}},
         
         % Continue the loop with the updated clock
-        loop(Name, Log, Peers, Sleep, Jitter, UpdatedClock)
+        loop(Name, Log, Peers, Sleep, Jitter, NewClock)
     end.
 
 
