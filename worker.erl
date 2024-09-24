@@ -22,27 +22,38 @@ init(Name, Log, Seed, Sleep, Jitter) ->
 peers(Wrk, Peers) ->
    Wrk ! {peers, Peers}.
 
-loop(Name, Log, Peers, Sleep, Jitter, Clock)->
+   loop(Name, Log, Peers, Sleep, Jitter, Clock) ->
     Wait = rand:uniform(Sleep),
     receive
         {msg, ReceivedTime, Msg} ->
-        % Update the clock with the received timestamp before incrementing
-        NewClock = time:inc(Name, time:merge(Clock, ReceivedTime)),
-        Log ! {log, Name, NewClock, {received, Msg}},
-        loop(Name, Log, Peers, Sleep, Jitter, NewClock);
+            % Update the clock with the received timestamp before incrementing
+            NewClock = time:inc(Name, time:merge(Clock, ReceivedTime)),
+            Log ! {log, Name, NewClock, {received, Msg}},
+            loop(Name, Log, Peers, Sleep, Jitter, NewClock);
         stop -> 
             ok;
         Error ->
-            Log ! {log, Name, time, {error, Error}}
+            Log ! {log, Name, Clock, {error, Error}}
     after Wait ->
-            Selected = select(Peers),
-            UpdatedClock = na,
-            Message = {hello, rand:uniform(100)},
-            Selected ! {msg, UpdatedClock, Message},
-            jitter(Jitter),
-            Log ! {log, Name, UpdatedClock, {sending, Message}},
-            loop(Name, Log, Peers, Sleep, Jitter, UpdatedClock)
+        Selected = select(Peers),
+        
+        % Increment the clock before sending the message
+        UpdatedClock = time:inc(Name, Clock),
+        
+        Message = {hello, rand:uniform(100)},
+        
+        % Send the message with the updated clock
+        Selected ! {msg, UpdatedClock, Message},
+        
+        jitter(Jitter),
+        
+        % Log the sending event with the updated clock
+        Log ! {log, Name, UpdatedClock, {sending, Message}},
+        
+        % Continue the loop with the updated clock
+        loop(Name, Log, Peers, Sleep, Jitter, UpdatedClock)
     end.
+
 
 select(Peers) ->
     lists:nth(rand:uniform(length(Peers)), Peers).

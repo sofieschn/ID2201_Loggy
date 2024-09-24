@@ -9,7 +9,7 @@ start(Nodes) ->
 stop(Loggy) ->
    Loggy ! stop.
 
-init(_) ->
+init(Nodes) ->
     % Initialize the clock and holdback queue
     Clock = time:clock(Nodes),
     Queue = [],
@@ -37,15 +37,19 @@ loop(Clock, Queue) ->
             ok
     end.
 
-    deliver_safe(Clock, [{Time, From, Msg} | Rest], Acc) ->
-        if
-            time:safe(Time, Clock) ->
-                % If the message is safe, add it to the accumulated list
-                deliver_safe(Clock, Rest, [{Time, From, Msg} | Acc]);
-            true ->
-                % If not safe, hold it back
-                {lists:reverse(Acc), [{Time, From, Msg} | Rest]}
-        end.
+% we dont use the clock here since we are just adding to the list 
+deliver_safe(_Clock, [], Acc) ->
+    {lists:reverse(Acc), []}; % Return accumulated safe messages
+
+deliver_safe(Clock, [{Time, From, Msg} | Rest], Acc) ->
+    case time:safe(Time, Clock) of
+        true ->
+            % If the message is safe, add it to the accumulated list
+            deliver_safe(Clock, Rest, [{Time, From, Msg} | Acc]);
+        false ->
+            % If not safe, hold it back
+            {lists:reverse(Acc), [{Time, From, Msg} | Rest]}
+    end.
  
 log(From, Time, Msg) ->
     io:format("log: ~w ~w ~p~n", [Time, From, Msg]).
