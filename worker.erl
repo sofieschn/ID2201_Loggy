@@ -8,11 +8,13 @@ stop(Worker) ->
     Worker ! stop.
 
 init(Name, Log, Seed, Sleep, Jitter) ->
-    % Seed with a better random generator
     rand:seed(exsplus, {Seed, Seed + 1, Seed + 2}),
+    % Initialize the Lamport clock
+    Clock = time:zero(),  
     receive
         {peers, Peers} ->
-            loop(Name, Log, Peers, Sleep, Jitter);
+            % Pass the initialized clock into the loop function
+            loop(Name, Log, Peers, Sleep, Jitter, Clock);
         stop -> 
             ok
     end.
@@ -20,24 +22,26 @@ init(Name, Log, Seed, Sleep, Jitter) ->
 peers(Wrk, Peers) ->
    Wrk ! {peers, Peers}.
 
-loop(Name, Log, Peers, Sleep, Jitter)->
+loop(Name, Log, Peers, Sleep, Jitter, Clock)->
     Wait = rand:uniform(Sleep),
     receive
-        {msg, Time, Msg} ->
-            Log ! {log, Name, Time, {received, Msg}},
-            loop(Name, Log, Peers, Sleep, Jitter);
+        {msg, ReceivedTime, Msg} ->
+        % Update the clock with the received timestamp before incrementing
+        NewClock = time:inc(Name, time:merge(Clock, ReceivedTime)),
+        Log ! {log, Name, NewClock, {received, Msg}},
+        loop(Name, Log, Peers, Sleep, Jitter, NewClock);
         stop -> 
             ok;
         Error ->
             Log ! {log, Name, time, {error, Error}}
     after Wait ->
             Selected = select(Peers),
-            Time = na,
+            UpdatedClock = na,
             Message = {hello, rand:uniform(100)},
-            Selected ! {msg, Time, Message},
+            Selected ! {msg, UpdatedClock, Message},
             jitter(Jitter),
-            Log ! {log, Name, Time, {sending, Message}},
-            loop(Name, Log, Peers, Sleep, Jitter)
+            Log ! {log, Name, UpdatedClock, {sending, Message}},
+            loop(Name, Log, Peers, Sleep, Jitter, UpdatedClock)
     end.
 
 select(Peers) ->
