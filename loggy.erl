@@ -2,10 +2,11 @@
 -module(loggy).
 -export([start/1, stop/1]).
 
-
+% starts the logger with the existing nodes by passing the nodes to the initializer 
 start(Nodes) ->
     spawn_link(fun() ->init(Nodes) end).
 
+% stops the logger
 stop(Loggy) ->
    Loggy ! stop.
 
@@ -13,8 +14,10 @@ init(Nodes) ->
     % Initialize the clock and holdback queue
     Clock = time:clock(Nodes),
     Queue = [],
+    % passe the created clock and que to the loop function
     loop(Clock, Queue).
 
+%loops through the messages recursively for each worker
 loop(Clock, Queue) ->
     receive
         {log, From, Time, Msg} ->

@@ -52,7 +52,8 @@ peers(Wrk, Peers) ->
         % Send the message with the updated clock
         Selected ! {msg, NewClock, Message},
         
-        jitter(Jitter),
+    % random delay
+        jitter(Jitter), 
         
         % Log the sending event with the updated clock
         Log ! {log, Name, NewClock, {sending, Message}},
